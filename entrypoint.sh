@@ -20,8 +20,8 @@ if [ ! -f "/code/data/.import_success" ]; then
     wget -qO "$PBF_FILE" "$REGION_URL"
     
     echo "2/4 Filtering points of interest (amenity, shop, tourism, historic, leisure, sport, public_transport)..."
-    # Using osmium to extract only relevant nodes
-    osmium tags-filter "$PBF_FILE" n/amenity n/shop n/tourism n/historic n/leisure n/sport n/highway=bus_stop n/public_transport -o "$FILTERED_PBF" --overwrite
+    # Using osmium to extract relevant nodes, ways (buildings), and relations (areas)
+    osmium tags-filter "$PBF_FILE" nwr/amenity nwr/shop nwr/tourism nwr/historic nwr/leisure nwr/sport nwr/highway=bus_stop nwr/public_transport -o "$FILTERED_PBF" --overwrite
     
     echo "3/4 Converting to JSON format..."
     osmium export "$FILTERED_PBF" -f geojsonseq -o "$JSON_FILE" --overwrite

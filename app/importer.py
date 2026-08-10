@@ -43,8 +43,10 @@ def import_data(conn):
     
     count = 0
     with open(JSON_PATH, 'r', encoding='utf-8') as f:
+        errors = 0
         for line in f:
-            line = line.strip()
+            # osmium geojsonseq format prefixes each line with a Record Separator (ASCII 30 / \x1e)
+            line = line.strip('\x1e\n\r\t ')
             if not line:
                 continue
             
@@ -54,41 +56,56 @@ def import_data(conn):
                 
             try:
                 feature = json.loads(line)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                if errors < 5:
+                    print(f"JSON decode error: {e}. Line preview: {line[:50]}")
+                errors += 1
                 continue
                 
             props = feature.get("properties", {})
             geom = feature.get("geometry", {})
+            geom_type = geom.get("type")
             
-            if geom.get("type") == "Point":
+            if geom_type == "Point":
                 lon, lat = geom.get("coordinates", [0, 0])
-                osm_id = feature.get("id", "").replace("node/", "")
-                
-                try:
-                    osm_id = int(osm_id)
-                except ValueError:
+            elif geom_type == "Polygon":
+                # Very simple centroid calculation for the outer ring
+                coords = geom.get("coordinates", [[[0, 0]]])[0]
+                if not coords:
                     continue
-                    
-                poi_type = (
-                    props.get("amenity") or 
-                    props.get("shop") or 
-                    props.get("tourism") or 
-                    props.get("historic") or 
-                    props.get("leisure") or 
-                    props.get("sport") or 
-                    props.get("public_transport") or 
-                    props.get("highway") or 
-                    "unknown"
-                )
-                name = props.get("name", "Unnamed")
-                tags = json.dumps(props)
+                lon = sum(c[0] for c in coords) / len(coords)
+                lat = sum(c[1] for c in coords) / len(coords)
+            else:
+                continue
                 
-                cursor.execute(
-                    'INSERT INTO pois (id, lat, lon, type, name, tags) VALUES (?, ?, ?, ?, ?, ?)',
-                    (osm_id, lat, lon, poi_type, name, tags)
-                )
-                count += 1
+            osm_id = feature.get("id", "")
+            osm_id = osm_id.split("/")[-1] # "node/123" -> "123", "way/456" -> "456"
+            
+            try:
+                osm_id = int(osm_id)
+            except ValueError:
+                continue
                 
+            poi_type = (
+                props.get("amenity") or 
+                props.get("shop") or 
+                props.get("tourism") or 
+                props.get("historic") or 
+                props.get("leisure") or 
+                props.get("sport") or 
+                props.get("public_transport") or 
+                props.get("highway") or 
+                "unknown"
+            )
+            name = props.get("name", "Unnamed")
+            tags = json.dumps(props)
+            
+            cursor.execute(
+                'INSERT INTO pois (id, lat, lon, type, name, tags) VALUES (?, ?, ?, ?, ?, ?)',
+                (osm_id, lat, lon, poi_type, name, tags)
+            )
+            count += 1
+            
     conn.commit()
     print(f"Import complete! {count} POIs inserted.")
 
