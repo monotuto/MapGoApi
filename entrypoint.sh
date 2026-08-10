@@ -7,7 +7,7 @@ PBF_FILE="/code/data/region.osm.pbf"
 FILTERED_PBF="/code/data/filtered.osm.pbf"
 JSON_FILE="/code/data/filtered.json"
 
-if [ ! -f "/code/data/.import_success" ]; then
+if [ ! -f "/code/data/.import_success_v2" ]; then
     echo "Local database not found or incomplete. Starting download and import process..."
     
     # Clean up any broken db from previous failed runs
@@ -33,7 +33,7 @@ if [ ! -f "/code/data/.import_success" ]; then
     rm -f "$PBF_FILE" "$FILTERED_PBF" "$JSON_FILE"
     
     # Mark as successfully imported
-    touch /code/data/.import_success
+    touch /code/data/.import_success_v2
     echo "Initialization complete!"
 else
     echo "Local database found and import was successful previously. Skipping import."
