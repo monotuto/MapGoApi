@@ -43,9 +43,20 @@ def import_data(conn):
     
     count = 0
     with open(JSON_PATH, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        features = data.get("features", [])
-        for feature in features:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Use a transaction per 10000 rows to improve speed but keep memory low
+            if count % 10000 == 0 and count > 0:
+                conn.commit()
+                
+            try:
+                feature = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+                
             props = feature.get("properties", {})
             geom = feature.get("geometry", {})
             

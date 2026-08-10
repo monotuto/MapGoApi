@@ -7,8 +7,12 @@ PBF_FILE="/code/data/region.osm.pbf"
 FILTERED_PBF="/code/data/filtered.osm.pbf"
 JSON_FILE="/code/data/filtered.json"
 
-if [ ! -f "$DB_FILE" ]; then
-    echo "Local database not found. Starting download and import process..."
+if [ ! -f "/code/data/.import_success" ]; then
+    echo "Local database not found or incomplete. Starting download and import process..."
+    
+    # Clean up any broken db from previous failed runs
+    rm -f "$DB_FILE"
+
     
     mkdir -p /code/data
     
@@ -20,17 +24,19 @@ if [ ! -f "$DB_FILE" ]; then
     osmium tags-filter "$PBF_FILE" n/amenity n/shop n/tourism n/historic n/leisure n/sport n/highway=bus_stop n/public_transport -o "$FILTERED_PBF" --overwrite
     
     echo "3/4 Converting to JSON format..."
-    osmium export "$FILTERED_PBF" -f geojson -o "$JSON_FILE" --overwrite
+    osmium export "$FILTERED_PBF" -f geojsonseq -o "$JSON_FILE" --overwrite
     
     echo "4/4 Importing into local SQLite database..."
     python /code/app/importer.py
     
     echo "Cleaning up temporary files..."
-    rm "$PBF_FILE" "$FILTERED_PBF" "$JSON_FILE"
+    rm -f "$PBF_FILE" "$FILTERED_PBF" "$JSON_FILE"
     
+    # Mark as successfully imported
+    touch /code/data/.import_success
     echo "Initialization complete!"
 else
-    echo "Local database found. Skipping import."
+    echo "Local database found and import was successful previously. Skipping import."
 fi
 
 echo "Starting API server..."
